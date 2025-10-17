@@ -32,4 +32,11 @@ router.post("/login", async (req, res) => {
   }
 });
 
+router.post("/logout", async (req, res) => {
+  res.clearCookie("token");
+  res.json({ message: "User logged out successfully" });
+  localStorage.removeItem("token"); 
+  window.location.href = "/login";
+});
+
 export default router;
