@@ -1,68 +1,84 @@
-import express from "express";
-import Bill from "../models/Bill.js";
-import DailySales from "../models/DailySales.js";
+import React, { useState, useEffect } from "react";
+import axios from "axios";
 
-const router = express.Router();
+export default function BackdatedBilling() {
+  const [menu, setMenu] = useState([]);
+  const [cart, setCart] = useState([]);
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10)); // default today
 
-// Add backdated bill
-router.post("/new", async (req, res) => {
-  try {
-    const { items, total, date } = req.body;
+  useEffect(() => {
+    axios.get("https://brotherscafe-backend.onrender.com/api/menu")
+      .then(res => setMenu(res.data))
+      .catch(console.error);
+  }, []);
 
-    if (!items || !total || !date) {
-      return res.status(400).json({ message: "Items, total, and date are required" });
+  const addToCart = (item) => {
+    setCart((prev) => [...prev, item]);
+  };
+
+  const total = cart.reduce((sum, i) => sum + i.price, 0);
+
+  const handleSave = async () => {
+    if (!date) return alert("Select a date");
+    if (cart.length === 0) return alert("Cart is empty");
+
+    try {
+      const res = await axios.post(
+        "https://brotherscafe-backend.onrender.com/api/bill/backdated",
+        { items: cart, total, date }
+      );
+      alert(res.data.message);
+      setCart([]);
+      setDate(new Date().toISOString().slice(0, 10));
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || "Error saving backdated bill");
     }
+  };
 
-    // 1️⃣ Save bill
-    const bill = new Bill({ items, total, date });
-    await bill.save();
+  return (
+    <div className="container">
+      <h2>Backdated Billing</h2>
 
-    // 2️⃣ Update daily sales
-    const daily = await DailySales.findOne({ date });
-    if (daily) {
-      daily.totalSales += total;
-      await daily.save();
-    } else {
-      await DailySales.create({ date, totalSales: total });
-    }
+      {/* Date Picker */}
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ marginRight: 8 }}>Select Date:</label>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+        />
+      </div>
 
-    res.json({ message: "Backdated bill saved successfully!", bill });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
+      {/* Menu Items */}
+      <h3>Menu</h3>
+      {menu.length === 0 && <div className="card">No menu items available.</div>}
+      {menu.map((item, idx) => (
+        <div key={idx} className="card" style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+          <div>{item.name} — ₹{item.price}</div>
+          <button className="btn" onClick={() => addToCart(item)}>Add</button>
+        </div>
+      ))}
 
-// Get all backdated bills
-router.get("/all", async (req, res) => {
-  try {
-    const bills = await Bill.find().sort({ createdAt: -1 });
-    res.json(bills);
-  } catch (err) {
-    res.status(500).json({ message: "Server error" });
-  }
-});
+      {/* Cart */}
+      <h3 style={{ marginTop: 20 }}>Cart</h3>
+      {cart.length === 0 && <div className="card">Cart is empty</div>}
+      {cart.map((i, idx) => (
+        <div key={idx} className="card" style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+          <div>{i.name}</div>
+          <div>₹{i.price}</div>
+        </div>
+      ))}
 
-// Delete backdated bill
-router.delete("/delete/:id", async (req, res) => {
-  try {
-    const bill = await Bill.findById(req.params.id);
-    if (!bill) return res.status(404).json({ message: "Bill not found" });
-
-    // Update daily sales
-    const daily = await DailySales.findOne({ date: bill.date });
-    if (daily) {
-      daily.totalSales -= bill.total;
-      if (daily.totalSales < 0) daily.totalSales = 0;
-      await daily.save();
-    }
-
-    await bill.remove();
-    res.json({ message: "Backdated bill deleted successfully" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-export default router;
+      {/* Total & Save */}
+      <h3>Total: ₹{total}</h3>
+      <button
+        className="btn btn-blue"
+        onClick={handleSave}
+        disabled={!date || cart.length === 0}
+      >
+        Save Backdated Bill
+      </button>
+    </div>
+  );
+}

@@ -8,8 +8,8 @@ const BillSchema = new mongoose.Schema({
       quantity: { type: Number, default: 1 },
     },
   ],
-  total: { type: Number, required: true },
-  date: { type: String, required: true }, // YYYY-MM-DD for backdated bills
-}, { timestamps: true });
+  total: Number,
+  createdAt: { type: Date, default: Date.now },
+});
 
 export default mongoose.model("Bill", BillSchema);

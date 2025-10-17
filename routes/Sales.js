@@ -1,15 +1,38 @@
 import express from "express";
-import DailySales from "../models/DailySales.js";
+import Bill from "../models/Bill.js";
 
 const router = express.Router();
 
-// Daywise sales
+// ✅ Daywise total sales aggregation
 router.get("/daywise", async (req, res) => {
   try {
-    const sales = await DailySales.find().sort({ date: -1 });
-    res.json(sales);
+    const sales = await Bill.aggregate([
+      {
+        $project: {
+          date: {
+            $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
+          },
+          total: 1,
+        },
+      },
+      {
+        $group: {
+          _id: "$date",
+          totalSales: { $sum: "$total" },
+        },
+      },
+      { $sort: { _id: -1 } }, // sort by date descending (latest first)
+    ]);
+
+    const formatted = sales.map((s) => ({
+      date: s._id,
+      totalSales: s.totalSales,
+    }));
+
+    res.json(formatted);
   } catch (err) {
-    res.status(500).json({ message: "Server error" });
+    console.error("Error fetching sales report:", err);
+    res.status(500).json({ message: "Error generating sales report" });
   }
 });
 

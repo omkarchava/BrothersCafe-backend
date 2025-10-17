@@ -1,35 +1,40 @@
 import express from "express";
 import Bill from "../models/Bill.js";
-import DailySales from "../models/DailySales.js";
+import SalesSummary from "../models/SalesSummary.js";
 
 const router = express.Router();
 
-// Add new bill (can be backdated)
+// helper to get date string YYYY-MM-DD from Date or now
+const getDateStr = (d = new Date()) => {
+  const dt = new Date(d);
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth()+1).padStart(2,'0');
+  const day = String(dt.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+};
+
+// Save new bill and update sales summary
 router.post("/new", async (req, res) => {
   try {
-    const { items, total, date } = req.body;
-
-    if (!items || !total || !date) {
-      return res.status(400).json({ message: "Items, total, and date required" });
-    }
-
-    // 1️⃣ Save bill
-    const bill = new Bill({ items, total, date });
+    const { items, total, createdAt } = req.body;
+    if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ message: "Empty cart" });
+    const bill = new Bill({ items, total, createdAt: createdAt ? new Date(createdAt) : undefined });
     await bill.save();
 
-    // 2️⃣ Update daily sales
-    const existing = await DailySales.findOne({ date });
+    const dateStr = getDateStr(bill.createdAt);
+    const existing = await SalesSummary.findOne({ date: dateStr });
     if (existing) {
       existing.totalSales += total;
       await existing.save();
     } else {
-      await DailySales.create({ date, totalSales: total });
+      const s = new SalesSummary({ date: dateStr, totalSales: total });
+      await s.save();
     }
 
-    res.json({ message: "Bill saved successfully!", bill });
+    res.json({ message: "Bill saved and sales summary updated" });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
+    console.error("Error saving bill:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -39,28 +44,33 @@ router.get("/all", async (req, res) => {
     const bills = await Bill.find().sort({ createdAt: -1 });
     res.json(bills);
   } catch (err) {
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ error: err.message });
   }
 });
 
-// Delete bill
+// Delete a bill and update sales summary
 router.delete("/delete/:id", async (req, res) => {
   try {
-    const bill = await Bill.findById(req.params.id);
+    const id = req.params.id;
+    const bill = await Bill.findById(id);
     if (!bill) return res.status(404).json({ message: "Bill not found" });
 
-    // Update daily sales
-    const daily = await DailySales.findOne({ date: bill.date });
-    if (daily) {
-      daily.totalSales -= bill.total;
-      if (daily.totalSales < 0) daily.totalSales = 0;
-      await daily.save();
+    const dateStr = getDateStr(bill.createdAt);
+    const existing = await SalesSummary.findOne({ date: dateStr });
+    if (existing) {
+      existing.totalSales -= bill.total;
+      if (existing.totalSales <= 0) {
+        await SalesSummary.deleteOne({ _id: existing._id });
+      } else {
+        await existing.save();
+      }
     }
 
-    await bill.remove();
-    res.json({ message: "Bill deleted successfully" });
+    await Bill.deleteOne({ _id: id });
+    res.json({ message: "Bill deleted and sales summary updated" });
   } catch (err) {
-    res.status(500).json({ message: "Server error" });
+    console.error("Error deleting bill:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
