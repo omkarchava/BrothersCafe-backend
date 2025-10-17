@@ -4,13 +4,13 @@ import DailySales from "../models/DailySales.js";
 
 const router = express.Router();
 
-// Add new bill (can be backdated)
+// Add backdated bill
 router.post("/new", async (req, res) => {
   try {
     const { items, total, date } = req.body;
 
     if (!items || !total || !date) {
-      return res.status(400).json({ message: "Items, total, and date required" });
+      return res.status(400).json({ message: "Items, total, and date are required" });
     }
 
     // 1️⃣ Save bill
@@ -18,22 +18,22 @@ router.post("/new", async (req, res) => {
     await bill.save();
 
     // 2️⃣ Update daily sales
-    const existing = await DailySales.findOne({ date });
-    if (existing) {
-      existing.totalSales += total;
-      await existing.save();
+    const daily = await DailySales.findOne({ date });
+    if (daily) {
+      daily.totalSales += total;
+      await daily.save();
     } else {
       await DailySales.create({ date, totalSales: total });
     }
 
-    res.json({ message: "Bill saved successfully!", bill });
+    res.json({ message: "Backdated bill saved successfully!", bill });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
   }
 });
 
-// Get all bills
+// Get all backdated bills
 router.get("/all", async (req, res) => {
   try {
     const bills = await Bill.find().sort({ createdAt: -1 });
@@ -43,7 +43,7 @@ router.get("/all", async (req, res) => {
   }
 });
 
-// Delete bill
+// Delete backdated bill
 router.delete("/delete/:id", async (req, res) => {
   try {
     const bill = await Bill.findById(req.params.id);
@@ -58,8 +58,9 @@ router.delete("/delete/:id", async (req, res) => {
     }
 
     await bill.remove();
-    res.json({ message: "Bill deleted successfully" });
+    res.json({ message: "Backdated bill deleted successfully" });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Server error" });
   }
 });

@@ -1,14 +1,15 @@
 import mongoose from "mongoose";
 
-const itemSchema = new mongoose.Schema({
-  name: String,
-  price: Number
-}, { _id: false });
+const BillSchema = new mongoose.Schema({
+  items: [
+    {
+      name: String,
+      price: Number,
+      quantity: { type: Number, default: 1 },
+    },
+  ],
+  total: { type: Number, required: true },
+  date: { type: String, required: true }, // YYYY-MM-DD for backdated bills
+}, { timestamps: true });
 
-const billSchema = new mongoose.Schema({
-  items: [itemSchema],
-  total: Number,
-  createdAt: { type: Date, default: Date.now }
-});
-
-export default mongoose.model("Bill", billSchema);
+export default mongoose.model("Bill", BillSchema);

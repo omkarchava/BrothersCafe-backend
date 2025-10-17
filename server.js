@@ -6,6 +6,7 @@ import authRoutes from "./routes/authRoutes.js";
 import billRoutes from "./routes/billRoutes.js";
 import menuRoutes from "./routes/menuRoutes.js";
 import salesRoutes from "./routes/salesRoutes.js";
+import backdatedBillRoutes from "./routes/backdatedBill.js";
 
 dotenv.config();
 const app = express();
@@ -20,6 +21,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/bill", billRoutes);
 app.use("/api/menu", menuRoutes);
 app.use("/api/sales", salesRoutes);
+app.use("/api/backdated-bill", backdatedBillRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
