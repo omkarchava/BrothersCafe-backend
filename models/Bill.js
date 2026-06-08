@@ -5,11 +5,27 @@ const BillSchema = new mongoose.Schema({
     {
       name: String,
       price: Number,
-      quantity: { type: Number, default: 1 },
+      quantity: {
+        type: Number,
+        default: 1,
+      },
     },
   ],
-  total: Number,
-  createdAt: { type: Date, default: Date.now },
+
+  total: {
+    type: Number,
+    required: true,
+  },
+
+  billedBy: {
+    type: String,
+    required: true,
+  },
+
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
 });
 
 export default mongoose.model("Bill", BillSchema);
