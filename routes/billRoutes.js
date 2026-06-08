@@ -24,6 +24,7 @@ router.post("/new", async (req, res) => {
       billedBy,
       createdAt: createdAt ? new Date(createdAt) : undefined,
     });
+    console.log("Bill Object =", bill
 
     await bill.save();
 
